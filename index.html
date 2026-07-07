@@ -1,0 +1,643 @@
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
+import {
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Briefcase,
+  Clock,
+  ArrowLeft,
+  Search,
+  Plus,
+  X,
+  IndianRupee,
+} from "lucide-react";
+
+const STOCK_SEED = [
+  { symbol: "RELIANCE", name: "Reliance Industries", price: 2940 },
+  { symbol: "TCS", name: "Tata Consultancy Services", price: 3850 },
+  { symbol: "HDFCBANK", name: "HDFC Bank", price: 1780 },
+  { symbol: "INFY", name: "Infosys", price: 1620 },
+  { symbol: "ICICIBANK", name: "ICICI Bank", price: 1265 },
+  { symbol: "HINDUNILVR", name: "Hindustan Unilever", price: 2410 },
+  { symbol: "SBIN", name: "State Bank of India", price: 845 },
+  { symbol: "BHARTIARTL", name: "Bharti Airtel", price: 1620 },
+  { symbol: "KOTAKBANK", name: "Kotak Mahindra Bank", price: 1980 },
+  { symbol: "ITC", name: "ITC Ltd", price: 465 },
+  { symbol: "LT", name: "Larsen & Toubro", price: 3620 },
+  { symbol: "AXISBANK", name: "Axis Bank", price: 1195 },
+  { symbol: "BAJFINANCE", name: "Bajaj Finance", price: 7250 },
+  { symbol: "ASIANPAINT", name: "Asian Paints", price: 2510 },
+  { symbol: "MARUTI", name: "Maruti Suzuki", price: 12400 },
+  { symbol: "WIPRO", name: "Wipro", price: 295 },
+  { symbol: "ONGC", name: "Oil & Natural Gas Corp", price: 265 },
+  { symbol: "TATAMOTORS", name: "Tata Motors", price: 980 },
+  { symbol: "SUNPHARMA", name: "Sun Pharma", price: 1780 },
+  { symbol: "TITAN", name: "Titan Company", price: 3390 },
+];
+
+const STORAGE_KEY = "vtrade-state-v1";
+const FUND_PRESETS = [100, 500, 1000, 5000, 10000];
+
+function seedHistory(base) {
+  const arr = [];
+  let p = base;
+  for (let i = 0; i < 20; i++) {
+    p = p * (1 + (Math.random() - 0.5) * 0.002);
+    arr.push(p);
+  }
+  return arr;
+}
+
+function fmtINR(n) {
+  return "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+}
+function fmtINRShort(n) {
+  return "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+}
+
+export default function VirtualTradingApp() {
+  const [loaded, setLoaded] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [holdings, setHoldings] = useState({}); // symbol -> {qty, avgPrice}
+  const [orders, setOrders] = useState([]); // {id, symbol, side, qty, price, ts}
+  const [stocks, setStocks] = useState(() =>
+    STOCK_SEED.reduce((acc, s) => {
+      const history = seedHistory(s.price);
+      acc[s.symbol] = {
+        name: s.name,
+        price: history[history.length - 1],
+        dayOpen: s.price,
+        history,
+      };
+      return acc;
+    }, {})
+  );
+
+  const [tab, setTab] = useState("watchlist"); // watchlist | portfolio | orders
+  const [selected, setSelected] = useState(null); // symbol
+  const [search, setSearch] = useState("");
+  const [showFunds, setShowFunds] = useState(false);
+  const [customFund, setCustomFund] = useState("");
+  const [tradeQty, setTradeQty] = useState("1");
+  const [toast, setToast] = useState(null);
+
+  const saveTimer = useRef(null);
+
+  // Load persisted state
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get(STORAGE_KEY, false);
+        if (res && res.value) {
+          const parsed = JSON.parse(res.value);
+          setBalance(parsed.balance ?? 0);
+          setHoldings(parsed.holdings ?? {});
+          setOrders(parsed.orders ?? []);
+        }
+      } catch (e) {
+        // no saved state yet, that's fine
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  // Persist on change (debounced)
+  useEffect(() => {
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await window.storage.set(
+          STORAGE_KEY,
+          JSON.stringify({ balance, holdings, orders }),
+          false
+        );
+      } catch (e) {
+        console.error("save failed", e);
+      }
+    }, 400);
+    return () => clearTimeout(saveTimer.current);
+  }, [balance, holdings, orders, loaded]);
+
+  // Simulated live tick
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStocks((prev) => {
+        const next = {};
+        for (const sym in prev) {
+          const s = prev[sym];
+          const drift = (Math.random() - 0.5) * 0.006;
+          const newPrice = Math.max(1, s.price * (1 + drift));
+          const history = [...s.history.slice(-29), newPrice];
+          next[sym] = { ...s, price: newPrice, history };
+        }
+        return next;
+      });
+    }, 2500);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2200);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const filteredSymbols = useMemo(() => {
+    const q = search.trim().toUpperCase();
+    return Object.keys(stocks).filter(
+      (sym) => !q || sym.includes(q) || stocks[sym].name.toUpperCase().includes(q)
+    );
+  }, [search, stocks]);
+
+  const portfolioValue = useMemo(() => {
+    return Object.entries(holdings).reduce((sum, [sym, h]) => {
+      const price = stocks[sym]?.price ?? h.avgPrice;
+      return sum + price * h.qty;
+    }, 0);
+  }, [holdings, stocks]);
+
+  const totalInvested = useMemo(() => {
+    return Object.values(holdings).reduce((sum, h) => sum + h.avgPrice * h.qty, 0);
+  }, [holdings]);
+
+  const totalPL = portfolioValue - totalInvested;
+  const netWorth = balance + portfolioValue;
+
+  function addFunds(amount) {
+    if (!amount || amount <= 0) return;
+    setBalance((b) => b + amount);
+    setToast(`Added ${fmtINRShort(amount)} virtual funds`);
+    setShowFunds(false);
+    setCustomFund("");
+  }
+
+  function placeOrder(symbol, side, qty) {
+    qty = Number(qty);
+    if (!qty || qty <= 0) return;
+    const price = stocks[symbol].price;
+    const cost = price * qty;
+
+    if (side === "buy") {
+      if (cost > balance) {
+        setToast("Insufficient virtual balance");
+        return;
+      }
+      setBalance((b) => b - cost);
+      setHoldings((h) => {
+        const existing = h[symbol];
+        if (!existing) return { ...h, [symbol]: { qty, avgPrice: price } };
+        const newQty = existing.qty + qty;
+        const newAvg = (existing.avgPrice * existing.qty + cost) / newQty;
+        return { ...h, [symbol]: { qty: newQty, avgPrice: newAvg } };
+      });
+      setToast(`Bought ${qty} ${symbol} @ ${fmtINR(price)}`);
+    } else {
+      const existing = holdings[symbol];
+      if (!existing || existing.qty < qty) {
+        setToast("Not enough holdings to sell");
+        return;
+      }
+      setBalance((b) => b + cost);
+      setHoldings((h) => {
+        const remaining = existing.qty - qty;
+        const copy = { ...h };
+        if (remaining <= 0) delete copy[symbol];
+        else copy[symbol] = { ...existing, qty: remaining };
+        return copy;
+      });
+      setToast(`Sold ${qty} ${symbol} @ ${fmtINR(price)}`);
+    }
+
+    setOrders((o) => [
+      { id: Date.now() + Math.random(), symbol, side, qty, price, ts: Date.now() },
+      ...o,
+    ]);
+  }
+
+  if (!loaded) {
+    return (
+      <div className="h-full min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-slate-500 text-sm">Loading simulator…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans max-w-md mx-auto relative">
+      {/* Top bar */}
+      <div className="px-4 pt-5 pb-3 border-b border-slate-800 bg-slate-950 sticky top-0 z-20">
+        {selected ? (
+          <button
+            onClick={() => setSelected(null)}
+            className="flex items-center gap-1 text-slate-400 text-sm mb-3 active:text-slate-200"
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
+        ) : (
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-xs text-slate-500 tracking-wide uppercase">Virtual Trading</div>
+              <div className="text-lg font-semibold text-slate-100">Practice Terminal</div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 text-xs font-bold">
+              VT
+            </div>
+          </div>
+        )}
+
+        {!selected && (
+          <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-900/60 border border-slate-800 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[11px] text-slate-500 uppercase tracking-wide">Net worth</div>
+                <div className="text-2xl font-bold tabular-nums text-slate-50">{fmtINR(netWorth)}</div>
+                <div
+                  className={`text-xs mt-1 flex items-center gap-1 tabular-nums ${
+                    totalPL >= 0 ? "text-emerald-400" : "text-rose-500"
+                  }`}
+                >
+                  {totalPL >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                  {fmtINR(Math.abs(totalPL))} overall P&L
+                </div>
+              </div>
+              <button
+                onClick={() => setShowFunds(true)}
+                className="flex items-center gap-1 bg-teal-500 hover:bg-teal-400 active:bg-teal-600 text-slate-950 text-sm font-semibold px-3 py-2 rounded-xl"
+              >
+                <Plus size={15} /> Add funds
+              </button>
+            </div>
+            <div className="flex gap-4 mt-3 pt-3 border-t border-slate-800 text-xs">
+              <div>
+                <div className="text-slate-500">Cash balance</div>
+                <div className="text-slate-200 font-medium tabular-nums">{fmtINR(balance)}</div>
+              </div>
+              <div>
+                <div className="text-slate-500">Invested</div>
+                <div className="text-slate-200 font-medium tabular-nums">{fmtINR(totalInvested)}</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto pb-20">
+        {selected ? (
+          <StockDetail
+            symbol={selected}
+            stock={stocks[selected]}
+            holding={holdings[selected]}
+            balance={balance}
+            tradeQty={tradeQty}
+            setTradeQty={setTradeQty}
+            onTrade={placeOrder}
+          />
+        ) : tab === "watchlist" ? (
+          <Watchlist
+            symbols={filteredSymbols}
+            stocks={stocks}
+            search={search}
+            setSearch={setSearch}
+            onSelect={(sym) => {
+              setSelected(sym);
+              setTradeQty("1");
+            }}
+          />
+        ) : tab === "portfolio" ? (
+          <Portfolio holdings={holdings} stocks={stocks} onSelect={setSelected} />
+        ) : (
+          <Orders orders={orders} />
+        )}
+      </div>
+
+      {/* Bottom nav */}
+      {!selected && (
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900 border-t border-slate-800 flex z-20">
+          <NavBtn icon={<Search size={18} />} label="Watchlist" active={tab === "watchlist"} onClick={() => setTab("watchlist")} />
+          <NavBtn icon={<Briefcase size={18} />} label="Portfolio" active={tab === "portfolio"} onClick={() => setTab("portfolio")} />
+          <NavBtn icon={<Clock size={18} />} label="Orders" active={tab === "orders"} onClick={() => setTab("orders")} />
+          <NavBtn icon={<Wallet size={18} />} label="Funds" active={false} onClick={() => setShowFunds(true)} />
+        </div>
+      )}
+
+      {/* Add funds modal */}
+      {showFunds && (
+        <div className="fixed inset-0 bg-black/60 flex items-end z-30" onClick={() => setShowFunds(false)}>
+          <div
+            className="bg-slate-900 w-full max-w-md mx-auto rounded-t-3xl p-5 border-t border-slate-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-semibold text-slate-100">Add virtual funds</div>
+              <button onClick={() => setShowFunds(false)} className="text-slate-500">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {FUND_PRESETS.map((amt) => (
+                <button
+                  key={amt}
+                  onClick={() => addFunds(amt)}
+                  className="bg-slate-800 hover:bg-slate-700 rounded-xl py-3 text-sm font-medium text-slate-100"
+                >
+                  +{fmtINRShort(amt)}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 flex items-center bg-slate-800 rounded-xl px-3">
+                <IndianRupee size={14} className="text-slate-500" />
+                <input
+                  type="number"
+                  value={customFund}
+                  onChange={(e) => setCustomFund(e.target.value)}
+                  placeholder="Custom amount"
+                  className="bg-transparent flex-1 py-3 px-2 text-sm text-slate-100 outline-none"
+                />
+              </div>
+              <button
+                onClick={() => addFunds(Number(customFund))}
+                className="bg-teal-500 text-slate-950 font-semibold px-4 py-3 rounded-xl text-sm"
+              >
+                Add
+              </button>
+            </div>
+            <div className="text-[11px] text-slate-600 mt-3">This is simulated money. No real payment is involved.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-100 text-xs px-4 py-2 rounded-full border border-slate-700 z-40 shadow-lg">
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NavBtn({ icon, label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${
+        active ? "text-teal-400" : "text-slate-500"
+      }`}
+    >
+      {icon}
+      <span className="text-[10px]">{label}</span>
+    </button>
+  );
+}
+
+function Sparkline({ history, positive }) {
+  const data = history.map((p, i) => ({ i, p }));
+  return (
+    <div className="w-16 h-8">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <YAxis hide domain={["dataMin", "dataMax"]} />
+          <Line
+            type="monotone"
+            dataKey="p"
+            stroke={positive ? "#34d399" : "#f43f5e"}
+            strokeWidth={1.5}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function Watchlist({ symbols, stocks, search, setSearch, onSelect }) {
+  return (
+    <div className="px-4 pt-3">
+      <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl px-3 mb-3">
+        <Search size={15} className="text-slate-500" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search stocks"
+          className="bg-transparent flex-1 py-2.5 px-2 text-sm outline-none text-slate-100 placeholder:text-slate-600"
+        />
+      </div>
+      <div className="divide-y divide-slate-900">
+        {symbols.map((sym) => {
+          const s = stocks[sym];
+          const change = s.price - s.dayOpen;
+          const pct = (change / s.dayOpen) * 100;
+          const positive = change >= 0;
+          return (
+            <button
+              key={sym}
+              onClick={() => onSelect(sym)}
+              className="w-full flex items-center justify-between py-3 active:bg-slate-900/60"
+            >
+              <div className="text-left">
+                <div className="text-sm font-medium text-slate-100">{sym}</div>
+                <div className="text-[11px] text-slate-500">{s.name}</div>
+              </div>
+              <Sparkline history={s.history} positive={positive} />
+              <div className="text-right w-24">
+                <div className="text-sm font-semibold tabular-nums text-slate-100">
+                  {fmtINR(s.price)}
+                </div>
+                <div className={`text-[11px] tabular-nums ${positive ? "text-emerald-400" : "text-rose-500"}`}>
+                  {positive ? "+" : ""}
+                  {pct.toFixed(2)}%
+                </div>
+              </div>
+            </button>
+          );
+        })}
+        {symbols.length === 0 && (
+          <div className="text-center text-slate-600 text-sm py-10">No stocks match your search.</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Portfolio({ holdings, stocks, onSelect }) {
+  const entries = Object.entries(holdings);
+  if (entries.length === 0) {
+    return (
+      <div className="px-4 pt-16 text-center">
+        <Briefcase className="mx-auto text-slate-700 mb-3" size={32} />
+        <div className="text-slate-300 font-medium">No holdings yet</div>
+        <div className="text-slate-600 text-sm mt-1">Buy a stock from the watchlist to see it here.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="px-4 pt-3 divide-y divide-slate-900">
+      {entries.map(([sym, h]) => {
+        const price = stocks[sym]?.price ?? h.avgPrice;
+        const pl = (price - h.avgPrice) * h.qty;
+        const plPct = ((price - h.avgPrice) / h.avgPrice) * 100;
+        const positive = pl >= 0;
+        return (
+          <button
+            key={sym}
+            onClick={() => onSelect(sym)}
+            className="w-full flex items-center justify-between py-3.5 active:bg-slate-900/60"
+          >
+            <div className="text-left">
+              <div className="text-sm font-medium text-slate-100">{sym}</div>
+              <div className="text-[11px] text-slate-500">
+                {h.qty} qty · avg {fmtINR(h.avgPrice)}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-semibold tabular-nums text-slate-100">{fmtINR(price * h.qty)}</div>
+              <div className={`text-[11px] tabular-nums ${positive ? "text-emerald-400" : "text-rose-500"}`}>
+                {positive ? "+" : ""}
+                {fmtINR(pl)} ({plPct.toFixed(2)}%)
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Orders({ orders }) {
+  if (orders.length === 0) {
+    return (
+      <div className="px-4 pt-16 text-center">
+        <Clock className="mx-auto text-slate-700 mb-3" size={32} />
+        <div className="text-slate-300 font-medium">No orders yet</div>
+        <div className="text-slate-600 text-sm mt-1">Your buy and sell history will show up here.</div>
+      </div>
+    );
+  }
+  return (
+    <div className="px-4 pt-3 divide-y divide-slate-900">
+      {orders.map((o) => (
+        <div key={o.id} className="flex items-center justify-between py-3">
+          <div>
+            <div className="text-sm font-medium text-slate-100">
+              {o.symbol}{" "}
+              <span className={o.side === "buy" ? "text-emerald-400" : "text-rose-500"}>
+                {o.side.toUpperCase()}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-500">{new Date(o.ts).toLocaleString("en-IN")}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-medium tabular-nums text-slate-100">{o.qty} qty</div>
+            <div className="text-[11px] text-slate-500 tabular-nums">@ {fmtINR(o.price)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StockDetail({ symbol, stock, holding, balance, tradeQty, setTradeQty, onTrade }) {
+  const change = stock.price - stock.dayOpen;
+  const pct = (change / stock.dayOpen) * 100;
+  const positive = change >= 0;
+  const qty = Number(tradeQty) || 0;
+  const cost = qty * stock.price;
+  const data = stock.history.map((p, i) => ({ i, p }));
+
+  return (
+    <div className="px-4 pt-2">
+      <div className="mb-1">
+        <div className="text-xl font-bold text-slate-100">{symbol}</div>
+        <div className="text-xs text-slate-500">{stock.name}</div>
+      </div>
+      <div className="flex items-end gap-2 mt-2">
+        <div className="text-3xl font-bold tabular-nums text-slate-50">{fmtINR(stock.price)}</div>
+        <div className={`text-sm mb-1 tabular-nums ${positive ? "text-emerald-400" : "text-rose-500"}`}>
+          {positive ? "+" : ""}
+          {fmtINR(change)} ({pct.toFixed(2)}%)
+        </div>
+      </div>
+
+      <div className="h-40 mt-3 -mx-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <YAxis hide domain={["dataMin", "dataMax"]} />
+            <Line
+              type="monotone"
+              dataKey="p"
+              stroke={positive ? "#34d399" : "#f43f5e"}
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {holding && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 mt-2 flex justify-between text-xs">
+          <div>
+            <div className="text-slate-500">Your holding</div>
+            <div className="text-slate-200 font-medium">{holding.qty} qty @ avg {fmtINR(holding.avgPrice)}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-slate-500">Current value</div>
+            <div className="text-slate-200 font-medium tabular-nums">{fmtINR(holding.qty * stock.price)}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mt-4">
+        <div className="text-xs text-slate-500 mb-2">Quantity</div>
+        <div className="flex items-center gap-2 mb-3">
+          <button
+            onClick={() => setTradeQty(String(Math.max(1, qty - 1)))}
+            className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 font-bold"
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={tradeQty}
+            onChange={(e) => setTradeQty(e.target.value)}
+            className="flex-1 bg-slate-800 rounded-lg text-center py-2 text-slate-100 outline-none tabular-nums"
+          />
+          <button
+            onClick={() => setTradeQty(String(qty + 1))}
+            className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 font-bold"
+          >
+            +
+          </button>
+        </div>
+        <div className="flex justify-between text-xs text-slate-500 mb-4">
+          <span>Est. {qty >= 0 ? "cost" : "value"}</span>
+          <span className="text-slate-300 tabular-nums">{fmtINR(cost)}</span>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onTrade(symbol, "buy", qty)}
+            className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-3 rounded-xl text-sm"
+          >
+            Buy
+          </button>
+          <button
+            onClick={() => onTrade(symbol, "sell", qty)}
+            disabled={!holding}
+            className="flex-1 bg-rose-500 hover:bg-rose-400 disabled:opacity-30 disabled:hover:bg-rose-500 text-slate-950 font-semibold py-3 rounded-xl text-sm"
+          >
+            Sell
+          </button>
+        </div>
+        <div className="text-[11px] text-slate-600 mt-3 text-center">
+          Cash balance: {fmtINR(balance)}
+        </div>
+      </div>
+    </div>
+  );
+}
