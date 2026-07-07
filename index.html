@@ -4,516 +4,501 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Virtual Trading Terminal</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.tailwindcss.com"></script>
 <style>
-  body { margin:0; background:#020617; }
-  input[type=number]::-webkit-inner-spin-button,
-  input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
-  ::-webkit-scrollbar { display:none; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #020617; color: #f1f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+  .topbar { padding: 20px 16px 12px; border-bottom: 1px solid #1e293b; position: sticky; top: 0; background: #020617; z-index: 20; }
+  .backbtn { display: flex; align-items: center; gap: 6px; color: #94a3b8; font-size: 14px; background: none; border: none; margin-bottom: 12px; cursor: pointer; }
+  .headerrow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .eyebrow { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+  .apptitle { font-size: 18px; font-weight: 600; }
+  .badge { width: 32px; height: 32px; border-radius: 999px; background: rgba(45,212,191,0.1); border: 1px solid rgba(45,212,191,0.3); display: flex; align-items: center; justify-content: center; color: #2dd4bf; font-size: 11px; font-weight: 700; }
+  .balancecard { border-radius: 18px; background: linear-gradient(135deg, #0f172a, rgba(15,23,42,0.5)); border: 1px solid #1e293b; padding: 16px; }
+  .balancerow { display: flex; align-items: center; justify-content: space-between; }
+  .networth-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+  .networth { font-size: 26px; font-weight: 700; }
+  .pl { font-size: 12px; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+  .pos { color: #34d399; } .neg { color: #f43f5e; }
+  .addfundsbtn { display: flex; align-items: center; gap: 4px; background: #14b8a6; color: #020617; font-size: 13px; font-weight: 600; padding: 9px 12px; border-radius: 12px; border: none; cursor: pointer; }
+  .subrow { display: flex; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #1e293b; font-size: 12px; }
+  .subrow .label { color: #64748b; }
+  .subrow .value { color: #e2e8f0; font-weight: 500; }
+  .body { flex: 1; overflow-y: auto; padding-bottom: 80px; }
+  .searchbox { display: flex; align-items: center; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 0 12px; margin: 12px 16px; }
+  .searchbox input { background: transparent; border: none; outline: none; color: #f1f5f9; padding: 10px 8px; flex: 1; font-size: 14px; }
+  .list { padding: 0 16px; }
+  .row { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #0f172a; background: none; border-left: none; border-right: none; border-top: none; cursor: pointer; color: inherit; text-align: left; }
+  .row:last-child { border-bottom: none; }
+  .stocksym { font-size: 14px; font-weight: 500; }
+  .stockname { font-size: 11px; color: #64748b; }
+  .pricecell { text-align: right; min-width: 90px; }
+  .price { font-size: 14px; font-weight: 600; }
+  .pct { font-size: 11px; }
+  .empty { text-align: center; padding: 60px 20px 0; color: #64748b; }
+  .empty .title { color: #cbd5e1; font-weight: 500; margin-top: 8px; }
+  .empty .sub { font-size: 13px; margin-top: 4px; }
+  .navbar { position: fixed; bottom: 0; left: 0; right: 0; max-width: 480px; margin: 0 auto; background: #0f172a; border-top: 1px solid #1e293b; display: flex; z-index: 20; }
+  .navbtn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; background: none; border: none; cursor: pointer; color: #64748b; }
+  .navbtn.active { color: #2dd4bf; }
+  .navbtn span { font-size: 10px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; z-index: 30; }
+  .modal { background: #0f172a; width: 100%; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #334155; }
+  .modalhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .modalhead .title { font-weight: 600; }
+  .closebtn { background: none; border: none; color: #64748b; cursor: pointer; font-size: 18px; }
+  .presetgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .presetbtn { background: #1e293b; border: none; border-radius: 12px; padding: 12px; font-size: 14px; font-weight: 500; color: #f1f5f9; cursor: pointer; }
+  .customrow { display: flex; gap: 8px; }
+  .custominput { flex: 1; display: flex; align-items: center; background: #1e293b; border-radius: 12px; padding: 0 12px; }
+  .custominput input { background: transparent; border: none; outline: none; color: #f1f5f9; padding: 12px 8px; flex: 1; font-size: 14px; }
+  .addbtn { background: #14b8a6; color: #020617; font-weight: 600; padding: 12px 16px; border-radius: 12px; border: none; font-size: 14px; cursor: pointer; }
+  .note { font-size: 11px; color: #475569; margin-top: 12px; }
+  .toast { position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #f1f5f9; font-size: 12px; padding: 8px 16px; border-radius: 999px; border: 1px solid #334155; z-index: 40; box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+  .detailpx { padding: 8px 16px 0; }
+  .symtitle { font-size: 20px; font-weight: 700; }
+  .symname { font-size: 12px; color: #64748b; }
+  .pricebig-row { display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; }
+  .pricebig { font-size: 28px; font-weight: 700; }
+  .changebig { font-size: 14px; margin-bottom: 4px; }
+  .chartwrap { margin-top: 12px; }
+  .holdcard { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 12px; margin-top: 8px; display: flex; justify-content: space-between; font-size: 12px; }
+  .tradecard { background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; padding: 16px; margin-top: 16px; }
+  .qtylabel { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+  .qtyrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .qtybtn { width: 36px; height: 36px; border-radius: 10px; background: #1e293b; color: #e2e8f0; font-weight: 700; border: none; font-size: 16px; cursor: pointer; }
+  .qtyinput { flex: 1; background: #1e293b; border-radius: 10px; text-align: center; padding: 8px; color: #f1f5f9; border: none; outline: none; font-size: 14px; }
+  .estrow { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 16px; }
+  .estrow .val { color: #cbd5e1; }
+  .tradebtns { display: flex; gap: 8px; }
+  .buybtn, .sellbtn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; color: #020617; }
+  .buybtn { background: #34d399; } .buybtn:hover { background: #10b981; }
+  .sellbtn { background: #f43f5e; } .sellbtn:hover { background: #e11d48; }
+  .sellbtn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .balancenote { font-size: 11px; color: #475569; margin-top: 12px; text-align: center; }
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="app"></div>
 
-<script type="text/babel" data-presets="react">
-const { useState, useEffect, useRef, useMemo } = React;
+<script>
+(function () {
+  "use strict";
 
-const STOCK_SEED = [
-  { symbol: "RELIANCE", name: "Reliance Industries", price: 2940 },
-  { symbol: "TCS", name: "Tata Consultancy Services", price: 3850 },
-  { symbol: "HDFCBANK", name: "HDFC Bank", price: 1780 },
-  { symbol: "INFY", name: "Infosys", price: 1620 },
-  { symbol: "ICICIBANK", name: "ICICI Bank", price: 1265 },
-  { symbol: "HINDUNILVR", name: "Hindustan Unilever", price: 2410 },
-  { symbol: "SBIN", name: "State Bank of India", price: 845 },
-  { symbol: "BHARTIARTL", name: "Bharti Airtel", price: 1620 },
-  { symbol: "KOTAKBANK", name: "Kotak Mahindra Bank", price: 1980 },
-  { symbol: "ITC", name: "ITC Ltd", price: 465 },
-  { symbol: "LT", name: "Larsen & Toubro", price: 3620 },
-  { symbol: "AXISBANK", name: "Axis Bank", price: 1195 },
-  { symbol: "BAJFINANCE", name: "Bajaj Finance", price: 7250 },
-  { symbol: "ASIANPAINT", name: "Asian Paints", price: 2510 },
-  { symbol: "MARUTI", name: "Maruti Suzuki", price: 12400 },
-  { symbol: "WIPRO", name: "Wipro", price: 295 },
-  { symbol: "ONGC", name: "Oil & Natural Gas Corp", price: 265 },
-  { symbol: "TATAMOTORS", name: "Tata Motors", price: 980 },
-  { symbol: "SUNPHARMA", name: "Sun Pharma", price: 1780 },
-  { symbol: "TITAN", name: "Titan Company", price: 3390 },
-];
+  var STOCK_SEED = [
+    { symbol: "RELIANCE", name: "Reliance Industries", price: 2940 },
+    { symbol: "TCS", name: "Tata Consultancy Services", price: 3850 },
+    { symbol: "HDFCBANK", name: "HDFC Bank", price: 1780 },
+    { symbol: "INFY", name: "Infosys", price: 1620 },
+    { symbol: "ICICIBANK", name: "ICICI Bank", price: 1265 },
+    { symbol: "HINDUNILVR", name: "Hindustan Unilever", price: 2410 },
+    { symbol: "SBIN", name: "State Bank of India", price: 845 },
+    { symbol: "BHARTIARTL", name: "Bharti Airtel", price: 1620 },
+    { symbol: "KOTAKBANK", name: "Kotak Mahindra Bank", price: 1980 },
+    { symbol: "ITC", name: "ITC Ltd", price: 465 },
+    { symbol: "LT", name: "Larsen & Toubro", price: 3620 },
+    { symbol: "AXISBANK", name: "Axis Bank", price: 1195 },
+    { symbol: "BAJFINANCE", name: "Bajaj Finance", price: 7250 },
+    { symbol: "ASIANPAINT", name: "Asian Paints", price: 2510 },
+    { symbol: "MARUTI", name: "Maruti Suzuki", price: 12400 },
+    { symbol: "WIPRO", name: "Wipro", price: 295 },
+    { symbol: "ONGC", name: "Oil & Natural Gas Corp", price: 265 },
+    { symbol: "TATAMOTORS", name: "Tata Motors", price: 980 },
+    { symbol: "SUNPHARMA", name: "Sun Pharma", price: 1780 },
+    { symbol: "TITAN", name: "Titan Company", price: 3390 }
+  ];
 
-const STORAGE_KEY = "vtrade-state-v1";
-const FUND_PRESETS = [100, 500, 1000, 5000, 10000];
+  var STORAGE_KEY = "vtrade-state-v1";
+  var FUND_PRESETS = [100, 500, 1000, 5000, 10000];
 
-function seedHistory(base) {
-  const arr = [];
-  let p = base;
-  for (let i = 0; i < 20; i++) {
-    p = p * (1 + (Math.random() - 0.5) * 0.002);
-    arr.push(p);
+  // ---------- state ----------
+  var state = {
+    balance: 0,
+    holdings: {},   // symbol -> {qty, avgPrice}
+    orders: [],     // [{id, symbol, side, qty, price, ts}]
+    stocks: {},     // symbol -> {name, price, dayOpen, history:[]}
+    tab: "watchlist",
+    selected: null,
+    search: "",
+    showFunds: false,
+    tradeQty: 1,
+    toast: null
+  };
+
+  function seedHistory(base) {
+    var arr = []; var p = base;
+    for (var i = 0; i < 20; i++) { p = p * (1 + (Math.random() - 0.5) * 0.002); arr.push(p); }
+    return arr;
   }
-  return arr;
-}
 
-function fmtINR(n) {
-  return "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-}
-function fmtINRShort(n) {
-  return "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
-}
+  STOCK_SEED.forEach(function (s) {
+    var history = seedHistory(s.price);
+    state.stocks[s.symbol] = { name: s.name, price: history[history.length - 1], dayOpen: s.price, history: history };
+  });
 
-// Lightweight inline icons (no external icon library needed)
-const Icon = {
-  up: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>,
-  down: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></svg>,
-  search: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>,
-  briefcase: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
-  clock: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>,
-  wallet: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h3v-4z"/></svg>,
-  back: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>,
-  plus: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>,
-  x: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>,
-  rupee: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3h12M6 8h12M6 3c4 0 7 2 7 5s-3 5-7 5h9M6 13l8 8"/></svg>,
-};
-
-function Sparkline({ history, positive, width = 64, height = 32 }) {
-  const min = Math.min(...history);
-  const max = Math.max(...history);
-  const range = max - min || 1;
-  const points = history.map((p, i) => {
-    const x = (i / (history.length - 1)) * width;
-    const y = height - ((p - min) / range) * height;
-    return `${x},${y}`;
-  }).join(" ");
-  return (
-    <svg width={width} height={height}>
-      <polyline points={points} fill="none" stroke={positive ? "#34d399" : "#f43f5e"} strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function BigChart({ history, positive }) {
-  const width = 340, height = 140;
-  const min = Math.min(...history);
-  const max = Math.max(...history);
-  const range = max - min || 1;
-  const points = history.map((p, i) => {
-    const x = (i / (history.length - 1)) * width;
-    const y = height - ((p - min) / range) * height;
-    return `${x},${y}`;
-  }).join(" ");
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="160" preserveAspectRatio="none">
-      <polyline points={points} fill="none" stroke={positive ? "#34d399" : "#f43f5e"} strokeWidth="2" />
-    </svg>
-  );
-}
-
-function App() {
-  const [loaded, setLoaded] = useState(false);
-  const [balance, setBalance] = useState(0);
-  const [holdings, setHoldings] = useState({});
-  const [orders, setOrders] = useState([]);
-  const [stocks, setStocks] = useState(() =>
-    STOCK_SEED.reduce((acc, s) => {
-      const history = seedHistory(s.price);
-      acc[s.symbol] = { name: s.name, price: history[history.length - 1], dayOpen: s.price, history };
-      return acc;
-    }, {})
-  );
-
-  const [tab, setTab] = useState("watchlist");
-  const [selected, setSelected] = useState(null);
-  const [search, setSearch] = useState("");
-  const [showFunds, setShowFunds] = useState(false);
-  const [customFund, setCustomFund] = useState("");
-  const [tradeQty, setTradeQty] = useState("1");
-  const [toast, setToast] = useState(null);
-
-  // Load persisted state from localStorage
-  useEffect(() => {
+  // ---------- persistence ----------
+  function loadState() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
-        setBalance(parsed.balance ?? 0);
-        setHoldings(parsed.holdings ?? {});
-        setOrders(parsed.orders ?? []);
+        var parsed = JSON.parse(raw);
+        state.balance = parsed.balance || 0;
+        state.holdings = parsed.holdings || {};
+        state.orders = parsed.orders || [];
       }
-    } catch (e) { /* no saved state yet */ }
-    setLoaded(true);
-  }, []);
-
-  // Persist on change
-  useEffect(() => {
-    if (!loaded) return;
+    } catch (e) { /* no saved state */ }
+  }
+  function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ balance, holdings, orders }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ balance: state.balance, holdings: state.holdings, orders: state.orders }));
     } catch (e) { console.error("save failed", e); }
-  }, [balance, holdings, orders, loaded]);
+  }
+  loadState();
 
-  // Simulated live tick
-  useEffect(() => {
-    const id = setInterval(() => {
-      setStocks((prev) => {
-        const next = {};
-        for (const sym in prev) {
-          const s = prev[sym];
-          const drift = (Math.random() - 0.5) * 0.006;
-          const newPrice = Math.max(1, s.price * (1 + drift));
-          const history = [...s.history.slice(-29), newPrice];
-          next[sym] = { ...s, price: newPrice, history };
-        }
-        return next;
-      });
-    }, 2500);
-    return () => clearInterval(id);
-  }, []);
+  // ---------- helpers ----------
+  function fmtINR(n) {
+    return "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  }
+  function fmtINRShort(n) {
+    return "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function sparklineSvg(history, positive, w, h) {
+    w = w || 64; h = h || 32;
+    var min = Math.min.apply(null, history), max = Math.max.apply(null, history);
+    var range = (max - min) || 1;
+    var pts = history.map(function (p, i) {
+      var x = (i / (history.length - 1)) * w;
+      var y = h - ((p - min) / range) * h;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    var color = positive ? "#34d399" : "#f43f5e";
+    return '<svg width="' + w + '" height="' + h + '"><polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5"/></svg>';
+  }
+  function bigChartSvg(history, positive) {
+    var w = 340, h = 140;
+    var min = Math.min.apply(null, history), max = Math.max.apply(null, history);
+    var range = (max - min) || 1;
+    var pts = history.map(function (p, i) {
+      var x = (i / (history.length - 1)) * w;
+      var y = h - ((p - min) / range) * h;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    var color = positive ? "#34d399" : "#f43f5e";
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="160" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2"/></svg>';
+  }
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2200);
-    return () => clearTimeout(t);
-  }, [toast]);
+  var ICONS = {
+    up: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>',
+    down: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></svg>',
+    search: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+    briefcase: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+    clock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+    wallet: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h3v-4z"/></svg>',
+    back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
+    plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+    rupee: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12M6 8h12M6 3c4 0 7 2 7 5s-3 5-7 5h9M6 13l8 8"/></svg>'
+  };
 
-  const filteredSymbols = useMemo(() => {
-    const q = search.trim().toUpperCase();
-    return Object.keys(stocks).filter(
-      (sym) => !q || sym.includes(q) || stocks[sym].name.toUpperCase().includes(q)
-    );
-  }, [search, stocks]);
+  // ---------- derived ----------
+  function portfolioValue() {
+    var sum = 0;
+    Object.keys(state.holdings).forEach(function (sym) {
+      var h = state.holdings[sym];
+      var price = state.stocks[sym] ? state.stocks[sym].price : h.avgPrice;
+      sum += price * h.qty;
+    });
+    return sum;
+  }
+  function totalInvested() {
+    var sum = 0;
+    Object.keys(state.holdings).forEach(function (sym) { sum += state.holdings[sym].avgPrice * state.holdings[sym].qty; });
+    return sum;
+  }
 
-  const portfolioValue = useMemo(() => {
-    return Object.entries(holdings).reduce((sum, [sym, h]) => {
-      const price = stocks[sym] ? stocks[sym].price : h.avgPrice;
-      return sum + price * h.qty;
-    }, 0);
-  }, [holdings, stocks]);
-
-  const totalInvested = useMemo(() => {
-    return Object.values(holdings).reduce((sum, h) => sum + h.avgPrice * h.qty, 0);
-  }, [holdings]);
-
-  const totalPL = portfolioValue - totalInvested;
-  const netWorth = balance + portfolioValue;
-
+  // ---------- actions ----------
   function addFunds(amount) {
+    amount = Number(amount);
     if (!amount || amount <= 0) return;
-    setBalance((b) => b + amount);
-    setToast(`Added ${fmtINRShort(amount)} virtual funds`);
-    setShowFunds(false);
-    setCustomFund("");
+    state.balance += amount;
+    state.showFunds = false;
+    showToast("Added " + fmtINRShort(amount) + " virtual funds");
+    saveState(); render();
   }
 
   function placeOrder(symbol, side, qty) {
     qty = Number(qty);
     if (!qty || qty <= 0) return;
-    const price = stocks[symbol].price;
-    const cost = price * qty;
+    var price = state.stocks[symbol].price;
+    var cost = price * qty;
 
     if (side === "buy") {
-      if (cost > balance) { setToast("Insufficient virtual balance"); return; }
-      setBalance((b) => b - cost);
-      setHoldings((h) => {
-        const existing = h[symbol];
-        if (!existing) return { ...h, [symbol]: { qty, avgPrice: price } };
-        const newQty = existing.qty + qty;
-        const newAvg = (existing.avgPrice * existing.qty + cost) / newQty;
-        return { ...h, [symbol]: { qty: newQty, avgPrice: newAvg } };
-      });
-      setToast(`Bought ${qty} ${symbol} @ ${fmtINR(price)}`);
+      if (cost > state.balance) { showToast("Insufficient virtual balance"); return; }
+      state.balance -= cost;
+      var existing = state.holdings[symbol];
+      if (!existing) {
+        state.holdings[symbol] = { qty: qty, avgPrice: price };
+      } else {
+        var newQty = existing.qty + qty;
+        var newAvg = (existing.avgPrice * existing.qty + cost) / newQty;
+        state.holdings[symbol] = { qty: newQty, avgPrice: newAvg };
+      }
+      showToast("Bought " + qty + " " + symbol + " @ " + fmtINR(price));
     } else {
-      const existing = holdings[symbol];
-      if (!existing || existing.qty < qty) { setToast("Not enough holdings to sell"); return; }
-      setBalance((b) => b + cost);
-      setHoldings((h) => {
-        const remaining = existing.qty - qty;
-        const copy = { ...h };
-        if (remaining <= 0) delete copy[symbol];
-        else copy[symbol] = { ...existing, qty: remaining };
-        return copy;
-      });
-      setToast(`Sold ${qty} ${symbol} @ ${fmtINR(price)}`);
+      var h = state.holdings[symbol];
+      if (!h || h.qty < qty) { showToast("Not enough holdings to sell"); return; }
+      state.balance += cost;
+      var remaining = h.qty - qty;
+      if (remaining <= 0) delete state.holdings[symbol];
+      else state.holdings[symbol] = { qty: remaining, avgPrice: h.avgPrice };
+      showToast("Sold " + qty + " " + symbol + " @ " + fmtINR(price));
     }
 
-    setOrders((o) => [{ id: Date.now() + Math.random(), symbol, side, qty, price, ts: Date.now() }, ...o]);
+    state.orders.unshift({ id: Date.now() + Math.random(), symbol: symbol, side: side, qty: qty, price: price, ts: Date.now() });
+    saveState(); render();
   }
 
-  if (!loaded) {
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-500 text-sm">Loading simulator…</div>;
+  var toastTimer = null;
+  function showToast(msg) {
+    state.toast = msg;
+    render();
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { state.toast = null; render(); }, 2200);
   }
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans max-w-md mx-auto relative">
-      <div className="px-4 pt-5 pb-3 border-b border-slate-800 bg-slate-950 sticky top-0 z-20">
-        {selected ? (
-          <button onClick={() => setSelected(null)} className="flex items-center gap-1 text-slate-400 text-sm mb-3">
-            <Icon.back className="w-4 h-4" /> Back
-          </button>
-        ) : (
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-xs text-slate-500 tracking-wide uppercase">Virtual Trading</div>
-              <div className="text-lg font-semibold text-slate-100">Practice Terminal</div>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 text-xs font-bold">VT</div>
-          </div>
-        )}
+  // ---------- price ticking ----------
+  setInterval(function () {
+    Object.keys(state.stocks).forEach(function (sym) {
+      var s = state.stocks[sym];
+      var drift = (Math.random() - 0.5) * 0.006;
+      var newPrice = Math.max(1, s.price * (1 + drift));
+      var history = s.history.slice(-29); history.push(newPrice);
+      state.stocks[sym] = { name: s.name, price: newPrice, dayOpen: s.dayOpen, history: history };
+    });
+    render();
+  }, 2500);
 
-        {!selected && (
-          <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-900/60 border border-slate-800 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] text-slate-500 uppercase tracking-wide">Net worth</div>
-                <div className="text-2xl font-bold tabular-nums text-slate-50">{fmtINR(netWorth)}</div>
-                <div className={`text-xs mt-1 flex items-center gap-1 tabular-nums ${totalPL >= 0 ? "text-emerald-400" : "text-rose-500"}`}>
-                  {totalPL >= 0 ? <Icon.up className="w-3.5 h-3.5" /> : <Icon.down className="w-3.5 h-3.5" />}
-                  {fmtINR(Math.abs(totalPL))} overall P&L
-                </div>
-              </div>
-              <button onClick={() => setShowFunds(true)} className="flex items-center gap-1 bg-teal-500 hover:bg-teal-400 text-slate-950 text-sm font-semibold px-3 py-2 rounded-xl">
-                <Icon.plus className="w-3.5 h-3.5" /> Add funds
-              </button>
-            </div>
-            <div className="flex gap-4 mt-3 pt-3 border-t border-slate-800 text-xs">
-              <div><div className="text-slate-500">Cash balance</div><div className="text-slate-200 font-medium tabular-nums">{fmtINR(balance)}</div></div>
-              <div><div className="text-slate-500">Invested</div><div className="text-slate-200 font-medium tabular-nums">{fmtINR(totalInvested)}</div></div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto pb-20">
-        {selected ? (
-          <StockDetail symbol={selected} stock={stocks[selected]} holding={holdings[selected]} balance={balance}
-            tradeQty={tradeQty} setTradeQty={setTradeQty} onTrade={placeOrder} />
-        ) : tab === "watchlist" ? (
-          <Watchlist symbols={filteredSymbols} stocks={stocks} search={search} setSearch={setSearch}
-            onSelect={(sym) => { setSelected(sym); setTradeQty("1"); }} />
-        ) : tab === "portfolio" ? (
-          <Portfolio holdings={holdings} stocks={stocks} onSelect={setSelected} />
-        ) : (
-          <Orders orders={orders} />
-        )}
-      </div>
-
-      {!selected && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-slate-900 border-t border-slate-800 flex z-20">
-          <NavBtn icon={<Icon.search className="w-[18px] h-[18px]" />} label="Watchlist" active={tab === "watchlist"} onClick={() => setTab("watchlist")} />
-          <NavBtn icon={<Icon.briefcase className="w-[18px] h-[18px]" />} label="Portfolio" active={tab === "portfolio"} onClick={() => setTab("portfolio")} />
-          <NavBtn icon={<Icon.clock className="w-[18px] h-[18px]" />} label="Orders" active={tab === "orders"} onClick={() => setTab("orders")} />
-          <NavBtn icon={<Icon.wallet className="w-[18px] h-[18px]" />} label="Funds" active={false} onClick={() => setShowFunds(true)} />
-        </div>
-      )}
-
-      {showFunds && (
-        <div className="fixed inset-0 bg-black/60 flex items-end z-30" onClick={() => setShowFunds(false)}>
-          <div className="bg-slate-900 w-full max-w-md mx-auto rounded-t-3xl p-5 border-t border-slate-700" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="font-semibold text-slate-100">Add virtual funds</div>
-              <button onClick={() => setShowFunds(false)} className="text-slate-500"><Icon.x className="w-5 h-5" /></button>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {FUND_PRESETS.map((amt) => (
-                <button key={amt} onClick={() => addFunds(amt)} className="bg-slate-800 hover:bg-slate-700 rounded-xl py-3 text-sm font-medium text-slate-100">
-                  +{fmtINRShort(amt)}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 flex items-center bg-slate-800 rounded-xl px-3">
-                <Icon.rupee className="w-3.5 h-3.5 text-slate-500" />
-                <input type="number" value={customFund} onChange={(e) => setCustomFund(e.target.value)}
-                  placeholder="Custom amount" className="bg-transparent flex-1 py-3 px-2 text-sm text-slate-100 outline-none" />
-              </div>
-              <button onClick={() => addFunds(Number(customFund))} className="bg-teal-500 text-slate-950 font-semibold px-4 py-3 rounded-xl text-sm">Add</button>
-            </div>
-            <div className="text-[11px] text-slate-600 mt-3">This is simulated money. No real payment is involved.</div>
-          </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-slate-800 text-slate-100 text-xs px-4 py-2 rounded-full border border-slate-700 z-40 shadow-lg">
-          {toast}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NavBtn({ icon, label, active, onClick }) {
-  return (
-    <button onClick={onClick} className={`flex-1 flex flex-col items-center gap-1 py-2.5 ${active ? "text-teal-400" : "text-slate-500"}`}>
-      {icon}<span className="text-[10px]">{label}</span>
-    </button>
-  );
-}
-
-function Watchlist({ symbols, stocks, search, setSearch, onSelect }) {
-  return (
-    <div className="px-4 pt-3">
-      <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl px-3 mb-3">
-        <Icon.search className="w-[15px] h-[15px] text-slate-500" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search stocks"
-          className="bg-transparent flex-1 py-2.5 px-2 text-sm outline-none text-slate-100 placeholder:text-slate-600" />
-      </div>
-      <div className="divide-y divide-slate-900">
-        {symbols.map((sym) => {
-          const s = stocks[sym];
-          const change = s.price - s.dayOpen;
-          const pct = (change / s.dayOpen) * 100;
-          const positive = change >= 0;
-          return (
-            <button key={sym} onClick={() => onSelect(sym)} className="w-full flex items-center justify-between py-3 active:bg-slate-900/60">
-              <div className="text-left">
-                <div className="text-sm font-medium text-slate-100">{sym}</div>
-                <div className="text-[11px] text-slate-500">{s.name}</div>
-              </div>
-              <Sparkline history={s.history} positive={positive} />
-              <div className="text-right w-24">
-                <div className="text-sm font-semibold tabular-nums text-slate-100">{fmtINR(s.price)}</div>
-                <div className={`text-[11px] tabular-nums ${positive ? "text-emerald-400" : "text-rose-500"}`}>
-                  {positive ? "+" : ""}{pct.toFixed(2)}%
-                </div>
-              </div>
-            </button>
-          );
-        })}
-        {symbols.length === 0 && <div className="text-center text-slate-600 text-sm py-10">No stocks match your search.</div>}
-      </div>
-    </div>
-  );
-}
-
-function Portfolio({ holdings, stocks, onSelect }) {
-  const entries = Object.entries(holdings);
-  if (entries.length === 0) {
-    return (
-      <div className="px-4 pt-16 text-center">
-        <Icon.briefcase className="w-8 h-8 mx-auto text-slate-700 mb-3" />
-        <div className="text-slate-300 font-medium">No holdings yet</div>
-        <div className="text-slate-600 text-sm mt-1">Buy a stock from the watchlist to see it here.</div>
-      </div>
-    );
+  // ---------- render ----------
+  function render() {
+    var app = document.getElementById("app");
+    var html = "";
+    html += renderTopbar();
+    html += '<div class="body" id="bodywrap">' + renderBody() + '</div>';
+    if (!state.selected) html += renderNavbar();
+    if (state.showFunds) html += renderFundsModal();
+    if (state.toast) html += '<div class="toast">' + escapeHtml(state.toast) + '</div>';
+    app.innerHTML = html;
+    attachEvents();
   }
-  return (
-    <div className="px-4 pt-3 divide-y divide-slate-900">
-      {entries.map(([sym, h]) => {
-        const price = stocks[sym] ? stocks[sym].price : h.avgPrice;
-        const pl = (price - h.avgPrice) * h.qty;
-        const plPct = ((price - h.avgPrice) / h.avgPrice) * 100;
-        const positive = pl >= 0;
-        return (
-          <button key={sym} onClick={() => onSelect(sym)} className="w-full flex items-center justify-between py-3.5 active:bg-slate-900/60">
-            <div className="text-left">
-              <div className="text-sm font-medium text-slate-100">{sym}</div>
-              <div className="text-[11px] text-slate-500">{h.qty} qty · avg {fmtINR(h.avgPrice)}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm font-semibold tabular-nums text-slate-100">{fmtINR(price * h.qty)}</div>
-              <div className={`text-[11px] tabular-nums ${positive ? "text-emerald-400" : "text-rose-500"}`}>
-                {positive ? "+" : ""}{fmtINR(pl)} ({plPct.toFixed(2)}%)
-              </div>
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-function Orders({ orders }) {
-  if (orders.length === 0) {
-    return (
-      <div className="px-4 pt-16 text-center">
-        <Icon.clock className="w-8 h-8 mx-auto text-slate-700 mb-3" />
-        <div className="text-slate-300 font-medium">No orders yet</div>
-        <div className="text-slate-600 text-sm mt-1">Your buy and sell history will show up here.</div>
-      </div>
-    );
+
+  function renderTopbar() {
+    var h = '<div class="topbar">';
+    if (state.selected) {
+      h += '<button class="backbtn" data-action="back">' + ICONS.back + ' Back</button>';
+    } else {
+      h += '<div class="headerrow"><div><div class="eyebrow">Virtual Trading</div><div class="apptitle">Practice Terminal</div></div><div class="badge">VT</div></div>';
+      var pv = portfolioValue(), inv = totalInvested(), pl = pv - inv, netWorth = state.balance + pv, positive = pl >= 0;
+      h += '<div class="balancecard"><div class="balancerow"><div>';
+      h += '<div class="networth-label">Net worth</div><div class="networth">' + fmtINR(netWorth) + '</div>';
+      h += '<div class="pl ' + (positive ? "pos" : "neg") + '">' + (positive ? ICONS.up : ICONS.down) + ' ' + fmtINR(Math.abs(pl)) + ' overall P&L</div>';
+      h += '</div><button class="addfundsbtn" data-action="openfunds">' + ICONS.plus + ' Add funds</button></div>';
+      h += '<div class="subrow"><div><div class="label">Cash balance</div><div class="value">' + fmtINR(state.balance) + '</div></div>';
+      h += '<div><div class="label">Invested</div><div class="value">' + fmtINR(inv) + '</div></div></div></div>';
+    }
+    h += '</div>';
+    return h;
   }
-  return (
-    <div className="px-4 pt-3 divide-y divide-slate-900">
-      {orders.map((o) => (
-        <div key={o.id} className="flex items-center justify-between py-3">
-          <div>
-            <div className="text-sm font-medium text-slate-100">
-              {o.symbol} <span className={o.side === "buy" ? "text-emerald-400" : "text-rose-500"}>{o.side.toUpperCase()}</span>
-            </div>
-            <div className="text-[11px] text-slate-500">{new Date(o.ts).toLocaleString("en-IN")}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm font-medium tabular-nums text-slate-100">{o.qty} qty</div>
-            <div className="text-[11px] text-slate-500 tabular-nums">@ {fmtINR(o.price)}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
-function StockDetail({ symbol, stock, holding, balance, tradeQty, setTradeQty, onTrade }) {
-  const change = stock.price - stock.dayOpen;
-  const pct = (change / stock.dayOpen) * 100;
-  const positive = change >= 0;
-  const qty = Number(tradeQty) || 0;
-  const cost = qty * stock.price;
+  function renderBody() {
+    if (state.selected) return renderDetail(state.selected);
+    if (state.tab === "watchlist") return renderWatchlist();
+    if (state.tab === "portfolio") return renderPortfolio();
+    return renderOrders();
+  }
 
-  return (
-    <div className="px-4 pt-2">
-      <div className="mb-1">
-        <div className="text-xl font-bold text-slate-100">{symbol}</div>
-        <div className="text-xs text-slate-500">{stock.name}</div>
-      </div>
-      <div className="flex items-end gap-2 mt-2">
-        <div className="text-3xl font-bold tabular-nums text-slate-50">{fmtINR(stock.price)}</div>
-        <div className={`text-sm mb-1 tabular-nums ${positive ? "text-emerald-400" : "text-rose-500"}`}>
-          {positive ? "+" : ""}{fmtINR(change)} ({pct.toFixed(2)}%)
-        </div>
-      </div>
+  function renderWatchlist() {
+    var q = state.search.trim().toUpperCase();
+    var syms = Object.keys(state.stocks).filter(function (sym) {
+      return !q || sym.indexOf(q) !== -1 || state.stocks[sym].name.toUpperCase().indexOf(q) !== -1;
+    });
+    var h = '<div class="searchbox">' + ICONS.search + '<input id="searchinput" placeholder="Search stocks" value="' + escapeHtml(state.search) + '" /></div>';
+    h += '<div class="list">';
+    if (syms.length === 0) {
+      h += '<div class="empty"><div class="sub">No stocks match your search.</div></div>';
+    }
+    syms.forEach(function (sym) {
+      var s = state.stocks[sym];
+      var change = s.price - s.dayOpen;
+      var pct = (change / s.dayOpen) * 100;
+      var positive = change >= 0;
+      h += '<button class="row" data-action="select" data-symbol="' + sym + '">';
+      h += '<div><div class="stocksym">' + sym + '</div><div class="stockname">' + escapeHtml(s.name) + '</div></div>';
+      h += sparklineSvg(s.history, positive);
+      h += '<div class="pricecell"><div class="price">' + fmtINR(s.price) + '</div>';
+      h += '<div class="pct ' + (positive ? "pos" : "neg") + '">' + (positive ? "+" : "") + pct.toFixed(2) + '%</div></div>';
+      h += '</button>';
+    });
+    h += '</div>';
+    return h;
+  }
 
-      <div className="mt-3">
-        <BigChart history={stock.history} positive={positive} />
-      </div>
+  function renderPortfolio() {
+    var entries = Object.keys(state.holdings);
+    if (entries.length === 0) {
+      return '<div class="empty">' + ICONS.briefcase + '<div class="title">No holdings yet</div><div class="sub">Buy a stock from the watchlist to see it here.</div></div>';
+    }
+    var h = '<div class="list">';
+    entries.forEach(function (sym) {
+      var hld = state.holdings[sym];
+      var price = state.stocks[sym] ? state.stocks[sym].price : hld.avgPrice;
+      var pl = (price - hld.avgPrice) * hld.qty;
+      var plPct = ((price - hld.avgPrice) / hld.avgPrice) * 100;
+      var positive = pl >= 0;
+      h += '<button class="row" data-action="select" data-symbol="' + sym + '">';
+      h += '<div><div class="stocksym">' + sym + '</div><div class="stockname">' + hld.qty + ' qty · avg ' + fmtINR(hld.avgPrice) + '</div></div>';
+      h += '<div class="pricecell"><div class="price">' + fmtINR(price * hld.qty) + '</div>';
+      h += '<div class="pct ' + (positive ? "pos" : "neg") + '">' + (positive ? "+" : "") + fmtINR(pl) + ' (' + plPct.toFixed(2) + '%)</div></div>';
+      h += '</button>';
+    });
+    h += '</div>';
+    return h;
+  }
 
-      {holding && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 mt-2 flex justify-between text-xs">
-          <div>
-            <div className="text-slate-500">Your holding</div>
-            <div className="text-slate-200 font-medium">{holding.qty} qty @ avg {fmtINR(holding.avgPrice)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-slate-500">Current value</div>
-            <div className="text-slate-200 font-medium tabular-nums">{fmtINR(holding.qty * stock.price)}</div>
-          </div>
-        </div>
-      )}
+  function renderOrders() {
+    if (state.orders.length === 0) {
+      return '<div class="empty">' + ICONS.clock + '<div class="title">No orders yet</div><div class="sub">Your buy and sell history will show up here.</div></div>';
+    }
+    var h = '<div class="list">';
+    state.orders.forEach(function (o) {
+      h += '<div class="row" style="cursor:default;">';
+      h += '<div><div class="stocksym">' + o.symbol + ' <span class="' + (o.side === "buy" ? "pos" : "neg") + '">' + o.side.toUpperCase() + '</span></div>';
+      h += '<div class="stockname">' + new Date(o.ts).toLocaleString("en-IN") + '</div></div>';
+      h += '<div class="pricecell"><div class="price">' + o.qty + ' qty</div><div class="stockname">@ ' + fmtINR(o.price) + '</div></div>';
+      h += '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mt-4">
-        <div className="text-xs text-slate-500 mb-2">Quantity</div>
-        <div className="flex items-center gap-2 mb-3">
-          <button onClick={() => setTradeQty(String(Math.max(1, qty - 1)))} className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 font-bold">−</button>
-          <input type="number" value={tradeQty} onChange={(e) => setTradeQty(e.target.value)}
-            className="flex-1 bg-slate-800 rounded-lg text-center py-2 text-slate-100 outline-none tabular-nums" />
-          <button onClick={() => setTradeQty(String(qty + 1))} className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 font-bold">+</button>
-        </div>
-        <div className="flex justify-between text-xs text-slate-500 mb-4">
-          <span>Est. cost</span><span className="text-slate-300 tabular-nums">{fmtINR(cost)}</span>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => onTrade(symbol, "buy", qty)} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-3 rounded-xl text-sm">Buy</button>
-          <button onClick={() => onTrade(symbol, "sell", qty)} disabled={!holding}
-            className="flex-1 bg-rose-500 hover:bg-rose-400 disabled:opacity-30 text-slate-950 font-semibold py-3 rounded-xl text-sm">Sell</button>
-        </div>
-        <div className="text-[11px] text-slate-600 mt-3 text-center">Cash balance: {fmtINR(balance)}</div>
-      </div>
-    </div>
-  );
-}
+  function renderDetail(sym) {
+    var s = state.stocks[sym];
+    var hld = state.holdings[sym];
+    var change = s.price - s.dayOpen;
+    var pct = (change / s.dayOpen) * 100;
+    var positive = change >= 0;
+    var qty = Number(state.tradeQty) || 0;
+    var cost = qty * s.price;
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    var h = '<div class="detailpx">';
+    h += '<div class="symtitle">' + sym + '</div><div class="symname">' + escapeHtml(s.name) + '</div>';
+    h += '<div class="pricebig-row"><div class="pricebig">' + fmtINR(s.price) + '</div>';
+    h += '<div class="changebig ' + (positive ? "pos" : "neg") + '">' + (positive ? "+" : "") + fmtINR(change) + ' (' + pct.toFixed(2) + '%)</div></div>';
+    h += '<div class="chartwrap">' + bigChartSvg(s.history, positive) + '</div>';
+
+    if (hld) {
+      h += '<div class="holdcard"><div><div class="stockname">Your holding</div><div>' + hld.qty + ' qty @ avg ' + fmtINR(hld.avgPrice) + '</div></div>';
+      h += '<div style="text-align:right;"><div class="stockname">Current value</div><div>' + fmtINR(hld.qty * s.price) + '</div></div></div>';
+    }
+
+    h += '<div class="tradecard">';
+    h += '<div class="qtylabel">Quantity</div>';
+    h += '<div class="qtyrow"><button class="qtybtn" data-action="qtyminus">−</button>';
+    h += '<input class="qtyinput" id="qtyinput" type="number" value="' + qty + '" />';
+    h += '<button class="qtybtn" data-action="qtyplus">+</button></div>';
+    h += '<div class="estrow"><span>Est. cost</span><span class="val">' + fmtINR(cost) + '</span></div>';
+    h += '<div class="tradebtns"><button class="buybtn" data-action="buy" data-symbol="' + sym + '">Buy</button>';
+    h += '<button class="sellbtn" data-action="sell" data-symbol="' + sym + '" ' + (!hld ? "disabled" : "") + '>Sell</button></div>';
+    h += '<div class="balancenote">Cash balance: ' + fmtINR(state.balance) + '</div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderNavbar() {
+    function btn(icon, label, tabName) {
+      var active = state.tab === tabName;
+      return '<button class="navbtn ' + (active ? "active" : "") + '" data-action="tab" data-tab="' + tabName + '">' + icon + '<span>' + label + '</span></button>';
+    }
+    var h = '<div class="navbar">';
+    h += btn(ICONS.search, "Watchlist", "watchlist");
+    h += btn(ICONS.briefcase, "Portfolio", "portfolio");
+    h += btn(ICONS.clock, "Orders", "orders");
+    h += '<button class="navbtn" data-action="openfunds">' + ICONS.wallet + '<span>Funds</span></button>';
+    h += '</div>';
+    return h;
+  }
+
+  function renderFundsModal() {
+    var h = '<div class="modal-overlay" data-action="closefunds">';
+    h += '<div class="modal" onclick="event.stopPropagation()">';
+    h += '<div class="modalhead"><div class="title">Add virtual funds</div><button class="closebtn" data-action="closefunds">' + ICONS.x + '</button></div>';
+    h += '<div class="presetgrid">';
+    FUND_PRESETS.forEach(function (amt) {
+      h += '<button class="presetbtn" data-action="addfunds" data-amount="' + amt + '">+' + fmtINRShort(amt) + '</button>';
+    });
+    h += '</div>';
+    h += '<div class="customrow"><div class="custominput">' + ICONS.rupee + '<input id="customfund" type="number" placeholder="Custom amount" /></div>';
+    h += '<button class="addbtn" data-action="addcustomfund">Add</button></div>';
+    h += '<div class="note">This is simulated money. No real payment is involved.</div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  // ---------- events ----------
+  function attachEvents() {
+    var app = document.getElementById("app");
+
+    var searchInput = document.getElementById("searchinput");
+    if (searchInput) {
+      searchInput.addEventListener("input", function (e) {
+        state.search = e.target.value;
+        var caret = e.target.selectionStart;
+        render();
+        var el = document.getElementById("searchinput");
+        if (el) { el.focus(); el.setSelectionRange(caret, caret); }
+      });
+    }
+    var qtyInput = document.getElementById("qtyinput");
+    if (qtyInput) {
+      qtyInput.addEventListener("input", function (e) {
+        state.tradeQty = e.target.value;
+        render();
+        var el = document.getElementById("qtyinput");
+        if (el) el.focus();
+      });
+    }
+
+    app.addEventListener("click", function (e) {
+      var target = e.target.closest("[data-action]");
+      if (!target) return;
+      var action = target.getAttribute("data-action");
+
+      if (action === "back") { state.selected = null; render(); }
+      else if (action === "select") { state.selected = target.getAttribute("data-symbol"); state.tradeQty = 1; render(); }
+      else if (action === "tab") { state.tab = target.getAttribute("data-tab"); render(); }
+      else if (action === "openfunds") { state.showFunds = true; render(); }
+      else if (action === "closefunds") { state.showFunds = false; render(); }
+      else if (action === "addfunds") { addFunds(target.getAttribute("data-amount")); }
+      else if (action === "addcustomfund") {
+        var el = document.getElementById("customfund");
+        addFunds(el ? el.value : 0);
+      }
+      else if (action === "qtyminus") { state.tradeQty = Math.max(1, (Number(state.tradeQty) || 1) - 1); render(); }
+      else if (action === "qtyplus") { state.tradeQty = (Number(state.tradeQty) || 0) + 1; render(); }
+      else if (action === "buy") { placeOrder(target.getAttribute("data-symbol"), "buy", state.tradeQty); }
+      else if (action === "sell") { placeOrder(target.getAttribute("data-symbol"), "sell", state.tradeQty); }
+    }, { passive: true });
+  }
+
+  render();
+})();
 </script>
 </body>
 </html>
